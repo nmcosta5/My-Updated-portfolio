@@ -1,215 +1,234 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function ProjectShowcase({ projects, onBack }) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [touchStart, setTouchStart] = useState(null)
-  const [touchEnd, setTouchEnd] = useState(null)
-  const [isAnimating, setIsAnimating] = useState(false)
-  
-  if (!projects?.length) return null
-  const count = projects.length
+  const [activeIdx, setActiveIdx] = useState(0)
+  const carouselRef = useRef(null)
+  const reflectionRef = useRef(null)
+  const cardsRef = useRef([])
+  const currentRot = useRef(0)
+  const targetRot = useRef(0)
+  const dragging = useRef(false)
+  const dragStartX = useRef(0)
+  const startRot = useRef(0)
+  const raf = useRef(null)
+  const ready = useRef(false)
 
-  // Keyboard navigation
+  if (!projects?.length) return null
+
+  const count = projects.length
+  const total = 12
+  const radius = 650
+  const step = 360 / total
+
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'ArrowLeft') {
-        handlePrev()
-      } else if (e.key === 'ArrowRight') {
-        handleNext()
-      } else if (e.key === 'Escape') {
-        onBack()
+    if (ready.current) return
+    ready.current = true
+    const carousel = carouselRef.current
+    if (!carousel) return
+
+    cardsRef.current = []
+    carousel.innerHTML = ''
+
+    for (let i = 0; i < total; i++) {
+      const p = projects[i % count]
+      const div = document.createElement('div')
+      div.className = 'arc-card'
+      div.innerHTML = `
+        <img src="${p.image}" alt="${p.title}" />
+        <div class="arc-card-info">
+          <span class="arc-num">#${String(i % count + 1).padStart(2, '0')}</span>
+          <span class="arc-title">${p.title}</span>
+        </div>
+      `
+      const angle = i * step
+      div.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`
+      carousel.appendChild(div)
+      cardsRef.current.push({ el: div, angle })
+    }
+
+    if (reflectionRef.current) {
+      reflectionRef.current.innerHTML = carousel.innerHTML
+    }
+
+    function updateActive(rot) {
+      const n = ((rot % 360) + 360) % 360
+      let minD = Infinity
+      let idx = 0
+
+      cardsRef.current.forEach((c) => {
+        let rel = ((c.angle - n) % 360 + 540) % 360 - 180
+        if (Math.abs(rel) < 20) {
+          c.el.classList.add('active')
+          c.el.classList.remove('side')
+          if (Math.abs(rel) < minD) {
+            minD = Math.abs(rel)
+            const ci = cardsRef.current.indexOf(c) % count
+            idx = ci
+          }
+        } else {
+          c.el.classList.remove('active')
+          c.el.classList.add('side')
+        }
+      })
+
+      setActiveIdx((prev) => (prev !== idx ? idx : prev))
+    }
+
+    function loop() {
+      currentRot.current += (targetRot.current - currentRot.current) * 0.1
+      const r = currentRot.current
+      carousel.style.transform = `translateZ(${-radius}px) rotateY(${-r}deg)`
+      if (reflectionRef.current) {
+        reflectionRef.current.style.transform = `translateZ(${-radius}px) rotateY(${-r}deg) scaleY(-1)`
+      }
+      updateActive(r)
+      raf.current = requestAnimationFrame(loop)
+    }
+
+    raf.current = requestAnimationFrame(loop)
+
+    return () => {
+      if (raf.current) cancelAnimationFrame(raf.current)
+      carousel.innerHTML = ''
+      if (reflectionRef.current) reflectionRef.current.innerHTML = ''
+    }
+  }, [])
+
+  const snap = useCallback(() => {
+    targetRot.current = Math.round(targetRot.current / step) * step
+  }, [step])
+
+  const handleMouseDown = useCallback((e) => {
+    dragging.current = true
+    dragStartX.current = e.clientX
+    startRot.current = targetRot.current
+  }, [])
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current) return
+      const dx = e.clientX - dragStartX.current
+      targetRot.current = startRot.current - dx * 0.25
+    }
+    const onUp = () => {
+      if (dragging.current) {
+        dragging.current = false
+        snap()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeIndex, onBack])
-
-  const handleNext = () => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setActiveIndex((prev) => (prev + 1) % count)
-    setTimeout(() => setIsAnimating(false), 500)
-  }
-
-  const handlePrev = () => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setActiveIndex((prev) => (prev - 1 + count) % count)
-    setTimeout(() => setIsAnimating(false), 500)
-  }
-
-  // Touch swiping
-  const minSwipeDistance = 50
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null)
-    setTouchStart(e.targetTouches[0].clientX)
-  }
-
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX)
-  }
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return
-    const distance = touchStart - touchEnd
-    const isLeftSwipe = distance > minSwipeDistance
-    const isRightSwipe = distance < -minSwipeDistance
-    if (isLeftSwipe) {
-      handleNext()
-    } else if (isRightSwipe) {
-      handlePrev()
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
     }
-  }
+  }, [snap])
 
-  // Mouse dragging
-  const dragStart = useRef(null)
-  const onMouseDown = (e) => {
-    dragStart.current = e.clientX
-  }
-  const onMouseUp = (e) => {
-    if (dragStart.current === null) return
-    const distance = dragStart.current - e.clientX
-    if (distance > minSwipeDistance) {
-      handleNext()
-    } else if (distance < -minSwipeDistance) {
-      handlePrev()
+  const handleTouchStart = useCallback((e) => {
+    dragging.current = true
+    dragStartX.current = e.touches[0].clientX
+    startRot.current = targetRot.current
+  }, [])
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current) return
+      const dx = e.touches[0].clientX - dragStartX.current
+      targetRot.current = startRot.current - dx * 0.25
     }
-    dragStart.current = null
-  }
+    const onEnd = () => {
+      if (dragging.current) {
+        dragging.current = false
+        snap()
+      }
+    }
+    window.addEventListener('touchmove', onMove, { passive: true })
+    window.addEventListener('touchend', onEnd)
+    return () => {
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+    }
+  }, [snap])
 
-  const activeProject = projects[activeIndex]
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft') { targetRot.current += step; snap() }
+      else if (e.key === 'ArrowRight') { targetRot.current -= step; snap() }
+      else if (e.key === 'Escape') onBack()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step, onBack, snap])
+
+  const activeProject = projects[activeIdx]
 
   return (
-    <div className="showcase-container glass-carousel-theme">
-      {/* Top Header */}
-      <div className="showcase-topbar">
-        <button className="showcase-back" onClick={onBack}>
+    <div className="showcase-3d-arc">
+      <div className="arc-bg" />
+      <div className="arc-vignette" />
+
+      <div className="arc-topbar">
+        <button className="arc-back" onClick={onBack}>
           <i className="fa-solid fa-arrow-left"></i> Back
         </button>
-        <span className="showcase-title">Featured Work</span>
-        <span className="showcase-count">{activeIndex + 1} / {count}</span>
+        <span className="arc-title-label">Featured Work</span>
+        <span className="arc-counter">{activeIdx + 1} / {count}</span>
       </div>
 
-      {/* Carousel Area */}
-      <div 
-        className="carousel-viewport"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown}
-        onMouseUp={onMouseUp}
-      >
-        {/* Nav Arrows */}
-        <button className="carousel-arrow left" onClick={handlePrev} aria-label="Previous Project">
-          <i className="fa-solid fa-chevron-left"></i>
-        </button>
-        <button className="carousel-arrow right" onClick={handleNext} aria-label="Next Project">
-          <i className="fa-solid fa-chevron-right"></i>
-        </button>
-
-        {/* Coverflow Cards Stack */}
-        <div className="carousel-cards-container">
-          {projects.map((project, index) => {
-            let positionClass = 'inactive'
-            let offset = index - activeIndex
-
-            // Handle circular loop offset calculation
-            if (offset < -1) {
-              if (activeIndex === count - 1 && index === 0) offset = 1
-              else offset = -2
-            }
-            if (offset > 1) {
-              if (activeIndex === 0 && index === count - 1) offset = -1
-              else offset = 2
-            }
-
-            if (offset === 0) positionClass = 'active'
-            else if (offset === 1) positionClass = 'next'
-            else if (offset === -1) positionClass = 'prev'
-            else if (offset < -1) positionClass = 'far-prev'
-            else if (offset > 1) positionClass = 'far-next'
-
-            return (
-              <div
-                key={project.id}
-                className={`carousel-card-wrapper ${positionClass}`}
-                onClick={() => {
-                  if (positionClass === 'next') handleNext()
-                  if (positionClass === 'prev') handlePrev()
-                }}
-              >
-                <div className="carousel-card-inner">
-                  <img src={project.image} alt={project.title} className="carousel-card-img" />
-                  <div className="carousel-card-overlay">
-                    <span className="carousel-card-index">0{index + 1}</span>
-                    <h3 className="carousel-card-title-overlay">{project.title}</h3>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      <div className="arc-stage">
+        <div
+          className="arc-carousel"
+          ref={carouselRef}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+        />
+        <div className="arc-reflection" ref={reflectionRef} />
       </div>
 
-      {/* Info & Contributions Panel */}
-      <div className="carousel-info-panel-wrapper">
-        <div className="carousel-info-panel">
-          <div className="carousel-info-header">
-            <div className="carousel-info-title-group">
-              <span className="info-overline">Project Overview</span>
-              <h2 className="info-title">{activeProject.title}</h2>
-            </div>
+      <div className="arc-hint">Drag to rotate</div>
+
+      {activeProject && (
+        <div className="arc-info-panel" key={activeIdx}>
+          <div className="arc-info-header">
+            <span className="arc-info-overline">Project Overview</span>
+            <h2 className="arc-info-title">{activeProject.title}</h2>
             {activeProject.tech?.length > 0 && (
-              <div className="info-tech-tags">
+              <div className="arc-info-tags">
                 {activeProject.tech.map((t, i) => (
-                  <span key={i} className="info-tag">{t}</span>
+                  <span key={i} className="arc-tag">{t}</span>
                 ))}
               </div>
             )}
           </div>
-
-          <p className="info-description">{activeProject.description}</p>
-
+          <p className="arc-info-desc">{activeProject.description}</p>
           {activeProject.contributions?.length > 0 && (
-            <div className="info-contributions-section">
-              <h4 className="contributions-heading">
-                <i className="fa-solid fa-circle-check"></i> Key Deliverables & Contributions
-              </h4>
-              <ul className="contributions-list">
+            <div className="arc-info-contribs">
+              <h4><i className="fa-solid fa-circle-check"></i> Key Deliverables & Contributions</h4>
+              <ul>
                 {activeProject.contributions.map((c, i) => (
-                  <li key={i} className="contribution-item">
-                    <span className="bullet-glow"></span>
-                    <p>{c}</p>
-                  </li>
+                  <li key={i}>{c}</li>
                 ))}
               </ul>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Carousel Footer Pagination */}
-      <div className="carousel-footer-nav">
-        <div className="carousel-dots-indicator">
-          {projects.map((_, index) => (
+      <div className="arc-dots">
+        {projects.map((_, i) => {
+          const curProj = activeIdx % count
+          let diff = i - curProj
+          if (diff > count / 2) diff -= count
+          if (diff < -(count / 2)) diff += count
+          return (
             <button
-              key={index}
-              className={`carousel-dot-btn ${index === activeIndex ? 'active' : ''}`}
-              onClick={() => {
-                if (!isAnimating) {
-                  setIsAnimating(true)
-                  setActiveIndex(index)
-                  setTimeout(() => setIsAnimating(false), 500)
-                }
-              }}
-              aria-label={`Go to project ${index + 1}`}
+              key={i}
+              className={`arc-dot ${i === curProj ? 'active' : ''}`}
+              onClick={() => { targetRot.current -= diff * step; snap() }}
+              aria-label={`Go to project ${i + 1}`}
             />
-          ))}
-        </div>
-        <span className="carousel-swipe-hint">
-          <i className="fa-solid fa-arrows-left-right"></i> Drag or use arrow keys to navigate
-        </span>
+          )
+        })}
       </div>
     </div>
   )
