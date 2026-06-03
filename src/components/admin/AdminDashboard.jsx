@@ -183,7 +183,7 @@ function getTabDesc(id) {
     social: 'Manage your social media links',
     contacts: 'View messages from your contact form',
     blogs: 'Write and manage your blog posts',
-    ai: 'Configure the AI assistant with Gemini API',
+    ai: 'Configure Nzabana Assistant and settings',
   }
   return m[id] || ''
 }
@@ -871,7 +871,7 @@ function AISection({ toast }) {
       <div className="admin-form-card">
         <h4><i className="fa-solid fa-shield-halved"></i> Assistant Behavior</h4>
         <p style={{ color: '#c9d9e8', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          The AI assistant is configured to <strong>only answer questions related to NM Costa's portfolio</strong>.
+          Nzabana Assistant is configured to <strong>only answer questions related to NM Costa's portfolio</strong>.
           Any off-topic questions will be politely declined. The system prompt enforces this restriction.
         </p>
       </div>
