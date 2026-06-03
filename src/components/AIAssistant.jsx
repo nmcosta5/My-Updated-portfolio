@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { chat as geminiChat, isGeminiReady, initGemini } from '../services/geminiService'
 
 const WELCOME_MSG = {
   role: 'assistant',
@@ -18,19 +17,7 @@ export default function AIAssistant({ profile }) {
   const [messages, setMessages] = useState([WELCOME_MSG])
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
-  const [geminiReady, setGeminiReady] = useState(false)
   const chatRef = useRef(null)
-  const historyRef = useRef([])
-
-  useEffect(() => {
-    const key = localStorage.getItem('gemini_api_key')
-    if (key && !isGeminiReady()) {
-      const ok = initGemini(key)
-      setGeminiReady(ok)
-    } else {
-      setGeminiReady(isGeminiReady())
-    }
-  }, [])
 
   useEffect(() => {
     if (open && chatRef.current) {
@@ -47,22 +34,10 @@ export default function AIAssistant({ profile }) {
     setInput('')
     setThinking(true)
 
-    if (geminiReady) {
-      const res = await geminiChat(msg.trim(), historyRef.current)
-      historyRef.current.push(userMsg)
-      if (res.text) {
-        setMessages((prev) => [...prev, { role: 'assistant', text: res.text }])
-        historyRef.current.push({ role: 'assistant', text: res.text })
-      } else {
-        setMessages((prev) => [...prev, { role: 'assistant', text: res.error || 'Sorry, something went wrong.' }])
-      }
-      setThinking(false)
-    } else {
-      await new Promise((r) => setTimeout(r, 600))
-      const reply = getAutoReply(msg.trim(), profile)
-      setMessages((prev) => [...prev, { role: 'assistant', text: reply }])
-      setThinking(false)
-    }
+    await new Promise((r) => setTimeout(r, 600))
+    const reply = getAutoReply(msg.trim(), profile)
+    setMessages((prev) => [...prev, { role: 'assistant', text: reply }])
+    setThinking(false)
   }
 
   function handleKeyDown(e) {
@@ -76,7 +51,6 @@ export default function AIAssistant({ profile }) {
     const next = !open
     setOpen(next)
     if (!next) {
-      historyRef.current = []
       setTimeout(() => setMessages([WELCOME_MSG]), 300)
     }
   }
@@ -92,8 +66,8 @@ export default function AIAssistant({ profile }) {
           <i className="fa-solid fa-robot" style={{ color: '#0fbbff', fontSize: '1.2rem' }}></i>
           <div>
             <strong style={{ color: '#fff', fontSize: '0.95rem' }}>AI Assistant</strong>
-            <span style={{ color: geminiReady ? '#00ffa3' : '#ffd700', fontSize: '0.75rem', display: 'block' }}>
-              ● {geminiReady ? 'Gemini AI' : 'Local Mode'}
+            <span style={{ color: '#ffd700', fontSize: '0.75rem', display: 'block' }}>
+              ● Local AI
             </span>
           </div>
           <button className="ai-close" onClick={handleToggle}>

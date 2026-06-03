@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, isSupabaseReady } from '../../lib/supabase'
-import { initGemini, isGeminiReady } from '../../services/geminiService'
+
 import { seedDatabase } from '../../services/seedService'
 import AdminModal from './AdminModal'
 
@@ -794,11 +794,6 @@ function BlogSection({ items, onSave, onDelete, toast, loadAll }) {
 
 /* ===== AI Settings ===== */
 function AISection({ toast }) {
-  const [input, setInput] = useState(localStorage.getItem('gemini_api_key') || '')
-  const [status, setStatus] = useState(isGeminiReady())
-  const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState(null)
-  const [saving, setSaving] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
   const [pwSaving, setPwSaving] = useState(false)
   const [seeding, setSeeding] = useState(false)
@@ -813,25 +808,6 @@ function AISection({ toast }) {
       toast('Seed failed: ' + err.message, 'error')
     }
     setSeeding(false)
-  }
-
-  function handleSave() {
-    if (!input.trim()) { toast('Please enter a key', 'error'); return }
-    setSaving(true)
-    localStorage.setItem('gemini_api_key', input.trim())
-    const ok = initGemini(input.trim())
-    setStatus(ok)
-    setSaving(false)
-    toast(ok ? 'Gemini initialized successfully!' : 'Invalid API key', ok ? 'success' : 'error')
-  }
-
-  async function handleTest() {
-    setTesting(true)
-    setTestResult(null)
-    const { chat } = await import('../../services/geminiService')
-    const res = await chat('Say hello briefly, mention NM Costa')
-    setTestResult(res)
-    setTesting(false)
   }
 
   async function handlePasswordChange() {
@@ -857,20 +833,6 @@ function AISection({ toast }) {
 
   return (
     <div className="admin-ai-section">
-      <div className="admin-form-card">
-        <h4><i className="fa-solid fa-key"></i> Gemini API Key</h4>
-        <div className="admin-inline-form">
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Paste your Gemini API key here" type="password" />
-          <button className="admin-btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? <span className="admin-spinner"></span> : <i className="fa-solid fa-key"></i>} Save
-          </button>
-        </div>
-        <div className={`admin-ai-status ${status ? 'connected' : 'disconnected'}`}>
-          <i className={`fa-solid ${status ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
-          Status: {status ? 'Connected to Gemini AI' : 'Not configured'}
-        </div>
-      </div>
-
       <div className="admin-form-card">
         <h4><i className="fa-solid fa-lock"></i> Admin Password</h4>
         <div className="admin-pw-grid">
