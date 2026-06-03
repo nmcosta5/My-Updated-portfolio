@@ -11,7 +11,6 @@ export default function ProjectShowcase({ projects, onBack }) {
   const dragStartX = useRef(0)
   const startRot = useRef(0)
   const raf = useRef(null)
-  const ready = useRef(false)
 
   if (!projects?.length) return null
 
@@ -21,14 +20,10 @@ export default function ProjectShowcase({ projects, onBack }) {
   const step = 360 / total
 
   useEffect(() => {
-    if (ready.current) return
-    ready.current = true
     const carousel = carouselRef.current
-    if (!carousel) return
+    if (!carousel || carousel.children.length > 0) return
 
-    cardsRef.current = []
-    carousel.innerHTML = ''
-
+    const cardData = []
     for (let i = 0; i < total; i++) {
       const p = projects[i % count]
       const div = document.createElement('div')
@@ -43,8 +38,9 @@ export default function ProjectShowcase({ projects, onBack }) {
       const angle = i * step
       div.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`
       carousel.appendChild(div)
-      cardsRef.current.push({ el: div, angle })
+      cardData.push({ el: div, angle })
     }
+    cardsRef.current = cardData
 
     if (reflectionRef.current) {
       reflectionRef.current.innerHTML = carousel.innerHTML
@@ -62,8 +58,7 @@ export default function ProjectShowcase({ projects, onBack }) {
           c.el.classList.remove('side')
           if (Math.abs(rel) < minD) {
             minD = Math.abs(rel)
-            const ci = cardsRef.current.indexOf(c) % count
-            idx = ci
+            idx = cardsRef.current.indexOf(c) % count
           }
         } else {
           c.el.classList.remove('active')
@@ -89,8 +84,6 @@ export default function ProjectShowcase({ projects, onBack }) {
 
     return () => {
       if (raf.current) cancelAnimationFrame(raf.current)
-      carousel.innerHTML = ''
-      if (reflectionRef.current) reflectionRef.current.innerHTML = ''
     }
   }, [])
 
