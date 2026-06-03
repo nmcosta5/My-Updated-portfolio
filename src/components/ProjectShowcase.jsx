@@ -16,7 +16,7 @@ export default function ProjectShowcase({ projects, onBack }) {
 
   const count = projects.length
   const total = 12
-  const radius = 650
+  const radius = 400
   const step = 360 / total
 
   useEffect(() => {
