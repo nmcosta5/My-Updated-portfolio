@@ -21,36 +21,37 @@ export default function ProjectShowcase({ projects, onBack }) {
 
   useEffect(() => {
     const carousel = carouselRef.current
-    if (!carousel || carousel.children.length > 0) return
+    if (!carousel) return
 
-    const cardData = []
-    for (let i = 0; i < total; i++) {
-      const p = projects[i % count]
-      const div = document.createElement('div')
-      div.className = 'arc-card'
-      div.innerHTML = `
-        <img src="${p.image}" alt="${p.title}" />
-        <div class="arc-card-info">
-          <span class="arc-num">#${String(i % count + 1).padStart(2, '0')}</span>
-          <span class="arc-title">${p.title}</span>
-        </div>
-      `
-      const angle = i * step
-      div.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`
-      carousel.appendChild(div)
-      cardData.push({ el: div, angle })
-    }
-    cardsRef.current = cardData
+    if (carousel.children.length === 0) {
+      const cardData = []
+      for (let i = 0; i < total; i++) {
+        const p = projects[i % count]
+        const div = document.createElement('div')
+        div.className = 'arc-card'
+        div.innerHTML = `
+          <img src="${p.image}" alt="${p.title}" />
+          <div class="arc-card-info">
+            <span class="arc-num">#${String(i % count + 1).padStart(2, '0')}</span>
+            <span class="arc-title">${p.title}</span>
+          </div>
+        `
+        const angle = i * step
+        div.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`
+        carousel.appendChild(div)
+        cardData.push({ el: div, angle })
+      }
+      cardsRef.current = cardData
 
-    if (reflectionRef.current) {
-      reflectionRef.current.innerHTML = carousel.innerHTML
+      if (reflectionRef.current) {
+        reflectionRef.current.innerHTML = carousel.innerHTML
+      }
     }
 
     function updateActive(rot) {
       const n = ((rot % 360) + 360) % 360
       let minD = Infinity
       let idx = 0
-
       cardsRef.current.forEach((c) => {
         let rel = ((c.angle - n) % 360 + 540) % 360 - 180
         if (Math.abs(rel) < 20) {
@@ -65,12 +66,11 @@ export default function ProjectShowcase({ projects, onBack }) {
           c.el.classList.add('side')
         }
       })
-
       setActiveIdx((prev) => (prev !== idx ? idx : prev))
     }
 
     function loop() {
-      currentRot.current += (targetRot.current - currentRot.current) * 0.1
+      currentRot.current += (targetRot.current - currentRot.current) * 0.12
       const r = currentRot.current
       carousel.style.transform = `translateZ(${-radius}px) rotateY(${-r}deg)`
       if (reflectionRef.current) {
@@ -81,65 +81,66 @@ export default function ProjectShowcase({ projects, onBack }) {
     }
 
     raf.current = requestAnimationFrame(loop)
-
-    return () => {
-      if (raf.current) cancelAnimationFrame(raf.current)
-    }
+    return () => { if (raf.current) cancelAnimationFrame(raf.current) }
   }, [])
 
   const snap = useCallback(() => {
     targetRot.current = Math.round(targetRot.current / step) * step
   }, [step])
 
-  const handleMouseDown = useCallback((e) => {
-    dragging.current = true
-    dragStartX.current = e.clientX
-    startRot.current = targetRot.current
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return
+
+    const onDown = (e) => {
+      dragging.current = true
+      dragStartX.current = e.clientX
+      startRot.current = targetRot.current
+      carousel.style.cursor = 'grabbing'
+    }
+    const onTouchStart = (e) => {
+      dragging.current = true
+      dragStartX.current = e.touches[0].clientX
+      startRot.current = targetRot.current
+    }
+
+    carousel.addEventListener('mousedown', onDown)
+    carousel.addEventListener('touchstart', onTouchStart, { passive: true })
+    return () => {
+      carousel.removeEventListener('mousedown', onDown)
+      carousel.removeEventListener('touchstart', onTouchStart)
+    }
   }, [])
 
   useEffect(() => {
+    const carousel = carouselRef.current
     const onMove = (e) => {
       if (!dragging.current) return
       const dx = e.clientX - dragStartX.current
       targetRot.current = startRot.current - dx * 0.25
     }
-    const onUp = () => {
-      if (dragging.current) {
-        dragging.current = false
-        snap()
-      }
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [snap])
-
-  const handleTouchStart = useCallback((e) => {
-    dragging.current = true
-    dragStartX.current = e.touches[0].clientX
-    startRot.current = targetRot.current
-  }, [])
-
-  useEffect(() => {
-    const onMove = (e) => {
+    const onTouchMove = (e) => {
       if (!dragging.current) return
       const dx = e.touches[0].clientX - dragStartX.current
       targetRot.current = startRot.current - dx * 0.25
     }
-    const onEnd = () => {
+    const onUp = () => {
       if (dragging.current) {
         dragging.current = false
+        if (carousel) carousel.style.cursor = 'grab'
         snap()
       }
     }
-    window.addEventListener('touchmove', onMove, { passive: true })
-    window.addEventListener('touchend', onEnd)
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onUp)
     return () => {
-      window.removeEventListener('touchmove', onMove)
-      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onUp)
     }
   }, [snap])
 
@@ -152,6 +153,19 @@ export default function ProjectShowcase({ projects, onBack }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [step, onBack, snap])
+
+  useEffect(() => {
+    const onWheel = (e) => {
+      if (e.deltaY > 0) {
+        targetRot.current += step
+      } else {
+        targetRot.current -= step
+      }
+      snap()
+    }
+    window.addEventListener('wheel', onWheel, { passive: true })
+    return () => window.removeEventListener('wheel', onWheel)
+  }, [step, snap])
 
   const activeProject = projects[activeIdx]
 
@@ -169,16 +183,11 @@ export default function ProjectShowcase({ projects, onBack }) {
       </div>
 
       <div className="arc-stage">
-        <div
-          className="arc-carousel"
-          ref={carouselRef}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-        />
+        <div className="arc-carousel" ref={carouselRef} />
         <div className="arc-reflection" ref={reflectionRef} />
       </div>
 
-      <div className="arc-hint">Drag to rotate</div>
+      <div className="arc-hint">Scroll or drag to navigate</div>
 
       {activeProject && (
         <div className="arc-info-panel" key={activeIdx}>
