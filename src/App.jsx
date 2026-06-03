@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import Typed from 'typed.js'
+import { initGemini } from './services/geminiService'
 
 import {
   getProfile,
@@ -43,7 +44,8 @@ export default function App() {
       const authed = sessionStorage.getItem('admin_auth') === 'true'
       setPage(authed ? 'admin' : 'login')
     }
-
+    const key = localStorage.getItem('gemini_api_key')
+    if (key) initGemini(key)
 
   }, [])
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { chat as geminiChat, isGeminiReady, initGemini } from '../services/geminiService'
 
 const WELCOME_MSG = {
   role: 'assistant',
-  text: "Hi! I'm Nzabana Assistant. Feel free to ask me anything about NM Costa's skills, projects, or experience. I'm here to help!",
+  text: "Hi! Ask me anything about NM Costa's projects, skills, or experience.",
 }
 
 const SUGGESTIONS = [
@@ -17,7 +18,19 @@ export default function AIAssistant({ profile }) {
   const [messages, setMessages] = useState([WELCOME_MSG])
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
+  const [geminiReady, setGeminiReady] = useState(false)
   const chatRef = useRef(null)
+  const historyRef = useRef([])
+
+  useEffect(() => {
+    const key = localStorage.getItem('gemini_api_key')
+    if (key && !isGeminiReady()) {
+      const ok = initGemini(key)
+      setGeminiReady(ok)
+    } else {
+      setGeminiReady(isGeminiReady())
+    }
+  }, [])
 
   useEffect(() => {
     if (open && chatRef.current) {
@@ -34,10 +47,22 @@ export default function AIAssistant({ profile }) {
     setInput('')
     setThinking(true)
 
-    await new Promise((r) => setTimeout(r, 600))
-    const reply = getAutoReply(msg.trim(), profile)
-    setMessages((prev) => [...prev, { role: 'assistant', text: reply }])
-    setThinking(false)
+    if (geminiReady) {
+      const res = await geminiChat(msg.trim(), historyRef.current)
+      historyRef.current.push(userMsg)
+      if (res.text) {
+        setMessages((prev) => [...prev, { role: 'assistant', text: res.text }])
+        historyRef.current.push({ role: 'assistant', text: res.text })
+      } else {
+        setMessages((prev) => [...prev, { role: 'assistant', text: res.error || 'Sorry, something went wrong.' }])
+      }
+      setThinking(false)
+    } else {
+      await new Promise((r) => setTimeout(r, 600))
+      const reply = getAutoReply(msg.trim(), profile)
+      setMessages((prev) => [...prev, { role: 'assistant', text: reply }])
+      setThinking(false)
+    }
   }
 
   function handleKeyDown(e) {
@@ -51,6 +76,7 @@ export default function AIAssistant({ profile }) {
     const next = !open
     setOpen(next)
     if (!next) {
+      historyRef.current = []
       setTimeout(() => setMessages([WELCOME_MSG]), 300)
     }
   }
@@ -66,8 +92,8 @@ export default function AIAssistant({ profile }) {
           <i className="fa-solid fa-robot" style={{ color: '#0fbbff', fontSize: '1.2rem' }}></i>
           <div>
             <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Nzabana Assistant</strong>
-            <span style={{ color: '#ffd700', fontSize: '0.75rem', display: 'block' }}>
-              ● Local AI
+            <span style={{ color: geminiReady ? '#00ffa3' : '#ffd700', fontSize: '0.75rem', display: 'block' }}>
+              ● {geminiReady ? 'Gemini AI' : 'Local Mode'}
             </span>
           </div>
           <button className="ai-close" onClick={handleToggle}>
@@ -126,10 +152,9 @@ function getAutoReply(text, profile) {
   const lower = text.toLowerCase()
   const name = profile?.name || 'Merci'
   const fullName = profile?.fullName || 'Nzabana Merci'
-  const title = profile?.title || 'Full Stack Software Developer'
 
   if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey'))
-    return `Hello! 👋 I'm Nzabana Assistant for ${fullName}. How can I help you today?`
+    return `Hello! 👋 Ask me anything about ${fullName}'s work.`
 
   if (lower.includes('technology') || lower.includes('tech') || lower.includes('stack') || lower.includes('skill'))
     return `${name} works with: React.js, Node.js, PHP, MySQL, TypeScript, HTML5/CSS3/Bootstrap, and tools like Git & XAMPP.`
@@ -167,5 +192,5 @@ function getAutoReply(text, profile) {
   if (lower.includes('highlight') || lower.includes('interest'))
     return `Additional highlights: Strong interest in AI-powered systems, passionate about interactive UIs, actively exploring emerging technologies, and continuous self-learning.`
 
-  return `Thanks for your question! I'm Nzabana Assistant. ${fullName} is a ${title} based in ${profile?.location || 'Rwanda'}. You can ask me about his skills, projects, services, or how to get in touch!`
+  return `${fullName} is a ${profile?.title || 'Full Stack Software Developer'} based in ${profile?.location || 'Rwanda'}. You can ask about his skills, projects, services, or how to get in touch.`
 }
