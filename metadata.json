@@ -1,0 +1,8 @@
+{
+  "name": "My Portfolio",
+  "description": "A clean, pristine workspace slate ready for new custom code and interactive experiences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

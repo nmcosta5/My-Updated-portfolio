@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Message": {
+      "title": "Contact Message",
+      "description": "A message submitted via the contact form",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Sender name" },
+        "email": { "type": "string", "description": "Sender email" },
+        "subject": { "type": "string", "description": "Message subject" },
+        "message": { "type": "string", "description": "Message content" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Submission timestamp" }
+      },
+      "required": ["name", "email", "message", "createdAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Portfolio project data",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "desc": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } },
+        "image": { "type": "string" },
+        "color": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["name", "category", "desc", "features", "image", "color", "order"]
+    },
+    "Skill": {
+      "title": "Skill",
+      "description": "Portfolio skill",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "iconName": { "type": "string" },
+        "customSvg": { "type": "string" },
+        "order": { "type": "number" },
+        "colorClass": { "type": "string" }
+      },
+      "required": ["name", "iconName", "order"]
+    },
+    "Education": {
+      "title": "Education",
+      "description": "Educational background",
+      "type": "object",
+      "properties": {
+        "year": { "type": "string" },
+        "title": { "type": "string" },
+        "institution": { "type": "string" },
+        "description": { "type": "string" },
+        "iconName": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["year", "title", "institution", "description", "iconName", "order"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile config",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "twitter": { "type": "string" },
+        "musicUrl": { "type": "string", "description": "URL to background mp3" }
+      },
+      "required": ["firstName", "lastName", "title", "summary"]
+    },
+    "Blog": {
+      "title": "Blog",
+      "description": "A blog post",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "published": { "type": "boolean" }
+      },
+      "required": ["title", "content"]
+    },
+    "Album": {
+      "title": "Album",
+      "description": "A gallery album",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "images", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Publicly submittable contact messages"
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Projects displayed"
+    },
+    "/skills/{skillId}": {
+      "schema": "Skill",
+      "description": "Skills displayed"
+    },
+    "/education/{eduId}": {
+      "schema": "Education",
+      "description": "Education timeline displayed"
+    },
+    "/profile/{profileId}": {
+      "schema": "Profile",
+      "description": "Profile data (singleton: profile/main)"
+    },
+    "/blogs/{blogId}": {
+      "schema": "Blog",
+      "description": "Blog posts"
+    },
+    "/albums/{albumId}": {
+      "schema": "Album",
+      "description": "Gallery albums"
+    }
+  }
+}
